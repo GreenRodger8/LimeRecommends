@@ -8,6 +8,18 @@
  */
 
 var express = require('express'); // Express web server framework
+const { spawn } = require('child_process');
+
+const python = spawn('python.exe', ['hello_world.py']);
+
+python.stdout.on('data', (data) => {
+    console.log(data.toString());
+});
+
+python.on('exit', (code) => {
+    console.log(`Child exited with code ${code}`);
+});
+
 var app = express();
 app.use(express.static(__dirname + '/public'));
 console.log('Listening on 8888');
