@@ -7,9 +7,10 @@
  * https://developer.spotify.com/web-api/authorization-guide/#implicit_grant_flow
  */
 
-var express = require('express'); // Express web server framework
+var express = require('express');
 const { spawn } = require('child_process');
 
+//  Python script section
 const python = spawn('python.exe', ['hello_world.py']);
 
 python.stdout.on('data', (data) => {
@@ -20,7 +21,19 @@ python.on('exit', (code) => {
     console.log(`Child exited with code ${code}`);
 });
 
+//  Express server section
 var app = express();
-app.use(express.static(__dirname + '/public'));
+
+app.use(express.static(__dirname + '/public')); // serves index.html
+app.use(express.json()) // for parsing application/json
+app.use(express.urlencoded({ extended: true })) // for parsing application/x-www-form-urlencoded
+
+app.post('/', function (req, res) {
+    var auth = req.get('Authorization');
+
+    console.log(auth);
+    res.json(auth)
+});
+
 console.log('Listening on 8888');
 app.listen(8888);
