@@ -10,29 +10,36 @@
 var express = require('express');
 const { spawn } = require('child_process');
 
-//  Python script section
-const python = spawn('python.exe', ['hello_world.py']);
-
-python.stdout.on('data', (data) => {
-    console.log(data.toString());
-});
-
-python.on('exit', (code) => {
-    console.log(`Child exited with code ${code}`);
-});
-
 //  Express server section
 var app = express();
 
-app.use(express.static(__dirname + '/public')); // serves index.html
-app.use(express.json()) // for parsing application/json
-app.use(express.urlencoded({ extended: true })) // for parsing application/x-www-form-urlencoded
+app.use(express.static(__dirname + '/public')); //Serves index.html
+app.use(express.json()); //For parsing application/json
+app.use(express.urlencoded({ extended: true })); //For parsing application/x-www-form-urlencoded
 
 app.post('/', function (req, res) {
-    var auth = req.get('Authorization');
+    let auth = req.get('Authorization');
 
-    console.log(auth);
-    res.json(auth)
+    //Stringifying JSON
+    var testJson = { "auth": auth };
+    var stringJson = JSON.stringify(testJson);
+
+    //Spawn python to perform task
+    const python = spawn('python.exe', ['test.py', stringJson]); 
+    python.stdout.on('data', (data) => {
+        var pythonResult = data.toString();
+
+        //Print response from Python script and returns it to webpage
+        console.log(pythonResult);
+        res.json(pythonResult);
+    });
+    python.on('exit', (code) => {
+        console.log(`Child exited with code ${code}`);
+    });
+
+    
+    //console.log("Reached bottom of routing function");
+    //res.json("Reached bottom of routing function");
 });
 
 console.log('Listening on 8888');
