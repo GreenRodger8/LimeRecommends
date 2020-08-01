@@ -32,6 +32,28 @@
         return text;
     };
 
+    /**
+    * Used to recursively generate AJAX calls till an error occurs or successFunc returns null
+    * Result of successFunc is used as new URL
+    * @param  {string} url The url to use for the request
+    * @param  {JSON} headers The headers to use for the request
+    * @param  {function} successFunc The function to call on success. Gets passed the response object
+    * @return nothing
+    */
+    function loopAjax(url, headers, successFunc) {
+        $.ajax({
+            url: url,
+            headers: headers,
+            success: function (response) {
+                var result = successFunc(response);
+                if (result == null) return;
+                else {
+                    loopAjax(result, headers, successFunc);
+                }
+            }
+        });
+    }
+
     //var userProfileSource = document.getElementById('user-profile-template').innerHTML,
     //    userProfileTemplate = Handlebars.compile(userProfileSource),
     //    userProfilePlaceholder = document.getElementById('user-profile');
@@ -39,6 +61,10 @@
     var testSource = document.getElementById('test_template').innerHTML,
         testTemplate = Handlebars.compile(testSource),
         testPlaceholder = document.getElementById('test');
+
+    var centroidSource = document.getElementById('centroid_template').innerHTML,
+        centroidTemplate = Handlebars.compile(centroidSource),
+        centroidPlaceholder = document.getElementById('centroid');
 
     var albumLibrarySource = document.getElementById('album_library_template').innerHTML,
         albumLibraryTemplate = Handlebars.compile(albumLibrarySource),
@@ -70,6 +96,24 @@
 
                     $('#login').hide();
                     $('#loggedin').show();
+
+                    loopAjax(response.next, { 'Authorization': 'Bearer ' + access_token }, (response) => {
+                        albumLibraryPlaceholder.innerHTML += albumLibraryTemplate(response);
+                        return response.next;
+                    });
+                }
+            });
+
+            //Requests own server to make a centroid
+            $.ajax({
+                type: "PUT",
+                url: '/centroid',
+                headers: {
+                    'Authorization': 'Bearer ' + access_token
+                },
+                data: {},
+                success: function (response) {
+                    centroidPlaceholder.innerHTML = centroidTemplate(response);
                 }
             });
 

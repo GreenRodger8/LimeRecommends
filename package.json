@@ -1,13 +1,16 @@
 {
-  "author": "Spotify",
-  "name": "web-api-auth-examples",
-  "description": "Basic examples of the Spotify authorization flows through OAuth 2",
-  "version": "0.0.2",
+  "author": "Gerardo E. Rodriguez",
+  "name": "lime-recommends",
+  "description": "Automatically recommend songs using the Spotify API and Data",
+  "license": "Apache-2.0",
+  "version": "0.0.5",
+  "repository": "github:GreenRodger8/LimeRecommends",
   "dependencies": {
     "cookie-parser": "^1.4.4",
     "cors": "^2.8.4",
     "express": "~4.16.0",
     "querystring": "~0.2.0",
-    "request": "~2.83.0"
+    "request": "~2.83.0",
+    "zeromq": "^6.0.0-beta.6"
   }
 }
