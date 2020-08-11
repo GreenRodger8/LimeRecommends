@@ -3,14 +3,14 @@
 def getSongArray(dictSong):
     songArray = []
 
-    songArray.append(dictSong["Acousticness"])
-    songArray.append(dictSong["Danceability"])
-    songArray.append(dictSong["Energy"])
-    songArray.append(dictSong["Instrumentalness"])
-    songArray.append(dictSong["Loudness"])
-    songArray.append(dictSong["Speechiness"])
-    songArray.append(dictSong["Tempo"])
-    songArray.append(dictSong["Valence"])
+    songArray.append(dictSong["acousticness"])
+    songArray.append(dictSong["danceability"])
+    songArray.append(dictSong["energy"])
+    songArray.append(dictSong["instrumentalness"])
+    songArray.append(dictSong["loudness"])
+    songArray.append(dictSong["speechiness"])
+    songArray.append(dictSong["tempo"])
+    songArray.append(dictSong["valence"])
 
     return songArray
 

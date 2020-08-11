@@ -9,7 +9,7 @@ songArray = json.loads(sys.argv[1])
 firstSongContainer = songArray[0]
 
 #Get name of first song
-firstSongName = firstSongContainer["track"]["name"]
+firstSongName = firstSongContainer["name"]
 
 #Sorts first song name
 outputString = ''.join(sorted(firstSongName))

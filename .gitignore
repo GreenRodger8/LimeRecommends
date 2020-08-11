@@ -1,3 +1,4 @@
 **/clientSecrets.js
 **/.vs/
+**/__pycache__/
 node_modules/

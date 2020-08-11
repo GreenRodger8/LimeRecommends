@@ -1,0 +1,7 @@
+Python script running. Created log stream in:
+./log.txt
+File path from argument:
+./songFeatures.txt
+Passes os.R_OK and os.F_OK. Trying to open reading stream now
+Opened file to read successfully
+Loaded json file

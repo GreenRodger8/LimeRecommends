@@ -8,9 +8,12 @@
  */
 
 var express = require('express');
-var https = require('https');
 
-const { spawn } = require('child_process');
+//Custom functions
+const { chainRequests, concurrentRequests } = require('./customJS/webRequest.js');
+const { spawnPython } = require('./customJS/python.js');
+const { createTrimFunction, createSubArrays, joinSubArrays } = require('./customJS/trimJSON.js');
+const { writeToFile, readFromFile} = require('./customJS/ioStream.js')
 
 //  Express server section
 var app = express();
@@ -19,58 +22,11 @@ app.use(express.static(__dirname + '/public')); //Serves index.html
 app.use(express.json()); //For parsing application/json
 app.use(express.urlencoded({ extended: true })); //For parsing application/x-www-form-urlencoded
 
-/**
- * Spawn python to perform task
- * @param   {Array} arguments Array of arguments
- * @param   {String} pythonName Name of script to spawn
- * @returns {Promise} Resolves to final result of python script or error
- */
-function spawnPython(pythonName, arguments) {
-    return new Promise((resolve, reject) => {
-        const python = spawn('python.exe', [pythonName + '.py', ...arguments]);
-        var pythonResult;
-        python.stdout.on('data', (data) => {
-            pythonResult = data.toString();
-            console.log(`Python script ${pythonName}.py returned data: ${pythonResult}`);
-        });
-        python.stderr.on('data', (data) => {
-            console.log(`Python script ${pythonName}.py stderr: ${data}`);
-            reject(data);
-        });
-        python.on('exit', (code) => {
-            console.log(`Python script ${pythonName}.py exited with code: ${code}`);
-            resolve(pythonResult);
-        });
-    });
-};
+app.put('/centroid/', async function (req, res) {
+    //Get authorization code from req
+    let auth = req.get('Authorization')
 
-/**
- * Creates a filter function that will only keep certain key/value pairs
- * @param   {JSON} oldJson JSON Object to trim 
- * @param   {Array} keys Keys to keep from oldJSON 
- *                       If a key is an array then the first value of the array is used as the key,
- *                       the rest of the array is then treated as a nested JSON and recursed
- * @returns {Function} Function that filters JSON objects passed to it
- */
-function createJSONFilter(keys) {
-    return function trimJSON(oldJson) {
-        var newJson = {};
-        for (let key of keys) {
-            if (typeof key === 'string') newJson[key] = oldJson[key];
-            else if (typeof key === 'object' && Array.isArray(key)) {
-                var recurseFilter = createJSONFilter(key.slice(1));
-                newJson[key[0]] = recurseFilter(oldJson[key[0]]);
-            }
-        }
-        return newJson;
-    };
-}
-
-app.put('/centroid', function (req, res) {
-    //Get authorization from req
-    let auth = req.get('Authorization');
-
-    //Options for Spotify API request
+    //Get all of the saved songs in the user's library
     const options = {
         method: 'GET',
         hostname: 'api.spotify.com',
@@ -79,47 +35,50 @@ app.put('/centroid', function (req, res) {
             'Authorization': auth
         },
     };
+    var trimFunction = createTrimFunction([["track", "name"], ["track", "id"]]);
+    try {
+        var responseArray = await chainRequests(options, trimFunction); //Make promise handler?
+    } catch (error) {
+        console.error(error);
+    };
+    console.log(`responseArray = ${JSON.stringify(responseArray)}`);
 
-    //Make request to Spotify API
-    var stringResponse = "";
-    const connection = https.request(options, (connectionRes) => {
+    //Setup for requesting song feature data
+    const options2 = {
+        method: 'GET',
+        hostname: 'api.spotify.com',
+        path: '/v1/audio-features' + '/' + '?' + 'ids=', //Will receive ids from function
+        headers: {
+            'Authorization': auth
+        },
+    };
+    const songFeatures = ["acousticness", "danceability", "energy", "instrumentalness", "loudness", "speechiness", "tempo", "valence"]; //Store where?
+    const trimFunction2 = (response) => response["audio_features"].map(createTrimFunction(songFeatures));
 
-        //Gather response chunks into string
-        connectionRes.setEncoding('utf8');
-        connectionRes.on('data', (chunk) => {
-            stringResponse += chunk;
-        });
-        connectionRes.on('error', (err) => {
-            console.error(`Error while trying to get response in PUT /centroid router: ${err}`);
-        });
+    //Create an array of query strings
+    var queryArray2 = responseArray.map(track => track["id"]);
+    queryArray2 = createSubArrays(queryArray2, 100);
+    queryArray2 = queryArray2.map(subArray => subArray.join(','));
+    console.log(`queryArray2 = ${JSON.stringify(queryArray2)}`);
 
-        //Spawn python script and pass response string to it at end of stream
-        connectionRes.on('end', () => {
-            //Trims received data
-            var jsonResponse = JSON.parse(stringResponse);
-            var jsonFilter = createJSONFilter([["track", "name", "id"]]);
-            var filteredResponse = jsonResponse["items"].map(jsonFilter);
-            var stringArgument = JSON.stringify(filteredResponse);
+    //Get song feature data
+    try {
+        var songFeatureArray = await concurrentRequests(options2, queryArray2, trimFunction2);
+    } catch (error) {
+        console.error(error);
+    };
 
-            //Run python script on received data
-            spawnPython('test2', [stringArgument])
-                .then(result => {
-                    console.log(`Sent to client: ${result}`);
-                    res.json(result);
-                })
-                .catch(err => { console.log(`ERROR WITH PROMISE: ${err}`); res.json(err); });
+    //Run song features through python script
+    var superFeatureArray = joinSubArrays(songFeatureArray);
+    var path = "./songFeatures.txt";
+    await writeToFile(path, JSON.stringify(superFeatureArray)).catch(error => { console.error(error); res.json(error) });
+    var pythonResult = await spawnPython('createCentroid', [path]);
 
-            //res.json(JSON.stringify(stringArgument));
-        });
+    var centroid = await readFromFile(pythonResult).catch(error => { console.error(error); res.json(error) });
 
-    });
-
-    connection.on('error', (e) => {
-        console.error(`PROBLEM WITH REQUEST: ${e.message}`);
-    });
-
-    //Close Request
-    connection.end();
+    //Return result to client
+    console.log(`Sending result to client: ${centroid}`);
+    res.json(centroid);
 });
 
 app.post('/', function (req, res) {
@@ -140,3 +99,4 @@ app.post('/', function (req, res) {
 
 console.log('Listening on 8888');
 app.listen(8888);
+
