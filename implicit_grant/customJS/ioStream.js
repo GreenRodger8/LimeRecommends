@@ -78,3 +78,20 @@ async function readFromFile(path) {
     //});
 }
 exports.readFromFile = readFromFile;
+
+async function createDirectory(path) {
+    try {
+        console.log(`Creating directory for ${path}`);
+        await fsPromises.mkdir(path);
+    } catch (error) {
+        console.error(error);
+        if (err.code === 'EEXIST')
+            return false;
+        else
+            throw error;
+    } finally {
+        console.log(`Finished making directory for ${path}`);
+        return true;
+    }
+}
+exports.createDirectory = createDirectory;

@@ -82,7 +82,7 @@
         localStorage.removeItem(stateKey);
         if (access_token) {
 
-            //Requests Spotify for the last 50 albums saved by the User
+            //Requests Spotify for all of the albums saved by the User
             $.ajax({
                 url: 'https://api.spotify.com/v1/me/albums',
                 headers: {
@@ -104,10 +104,10 @@
                 }
             });
 
-            //Requests own server to make a centroid
+            //Requests own server to save user song data
             $.ajax({
                 type: "PUT",
-                url: '/centroid',
+                url: '/curator',
                 headers: {
                     'Authorization': 'Bearer ' + access_token
                 },
@@ -119,7 +119,7 @@
 
             //Requests own server to process data
             $.ajax({
-                type: "POST",
+                type: "GET",
                 url: '/',
                 headers: {
                     'Authorization': 'Bearer ' + access_token
