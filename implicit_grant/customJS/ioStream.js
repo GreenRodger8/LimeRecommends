@@ -1,5 +1,6 @@
 //Custom I/O Functions 
 
+const fs = require('fs');
 const fsPromises = require('fs').promises;
 
 /**
@@ -22,19 +23,6 @@ async function writeToFile(path, data) {
             return true;
         }
     }
-    //return new Promise((resolve, reject) => {
-    //    const writeStream = fs.createWriteStream(path);
-    //    writeStream.write(data);
-    //    console.log(`Writing to path: ${path}`);
-    //    writeStream.end();
-    //    writeStream.on('close', () => {
-    //        console.log(`Finished writing to path: ${path}`);
-    //        resolve();
-    //    })
-    //    writeStream.on('error', (error) => {
-    //        reject(error);
-    //    })
-    //});
 }
 exports.writeToFile = writeToFile;
 
@@ -57,25 +45,6 @@ async function readFromFile(path) {
             return fileContent;
         }
     }
-    //return new Promise((resolve, reject) => {
-    //    const readStream = fs.createReadStream(path, { encoding: "utf8" });
-    //    console.log(`Created read stream to path: ${path}`);
-    //    var data = '';
-    //    readStream.on('readable', () => {
-    //        console.log(`Reading from path: ${path}`);
-    //        var chunk;
-    //        while (null !== (chunk = readable.read())) {
-    //            data += chunk;
-    //        }
-    //    });
-    //    readStream.on('end', () => {
-    //        console.log(`Finished reading from path: ${path}`);
-    //        resolve(data);
-    //    });
-    //    readStream.on('error', (error) => {
-    //        reject(error);
-    //    });
-    //});
 }
 exports.readFromFile = readFromFile;
 
@@ -83,15 +52,27 @@ async function createDirectory(path) {
     try {
         console.log(`Creating directory for ${path}`);
         await fsPromises.mkdir(path);
+        console.log(`Finished making directory for ${path}`);
+        return true;
     } catch (error) {
         console.error(error);
-        if (err.code === 'EEXIST')
+        if (error.code === 'EEXIST')
             return false;
         else
             throw error;
-    } finally {
-        console.log(`Finished making directory for ${path}`);
-        return true;
     }
 }
 exports.createDirectory = createDirectory;
+
+async function checkPath(path) {
+    fs.access(path, fs.constants.F_OK, (err) => {
+        if (err) {
+            console.err(err);
+            return false;
+        }
+        else {
+            return true;
+        }
+    });
+}
+exports.checkPath = checkPath;

@@ -58,13 +58,9 @@
     //    userProfileTemplate = Handlebars.compile(userProfileSource),
     //    userProfilePlaceholder = document.getElementById('user-profile');
 
-    var testSource = document.getElementById('test_template').innerHTML,
-        testTemplate = Handlebars.compile(testSource),
-        testPlaceholder = document.getElementById('test');
-
-    var centroidSource = document.getElementById('centroid_template').innerHTML,
-        centroidTemplate = Handlebars.compile(centroidSource),
-        centroidPlaceholder = document.getElementById('centroid');
+    var recommendSource = document.getElementById('recommend_template').innerHTML,
+        recommendTemplate = Handlebars.compile(recommendSource),
+        recommendPlaceholder = document.getElementById('recommend');
 
     var albumLibrarySource = document.getElementById('album_library_template').innerHTML,
         albumLibraryTemplate = Handlebars.compile(albumLibrarySource),
@@ -105,9 +101,9 @@
             });
 
             //Requests own server to save user song data
-            $.ajax({
+            /*$.ajax({
                 type: "PUT",
-                url: '/curator',
+                url: '/curator/',
                 headers: {
                     'Authorization': 'Bearer ' + access_token
                 },
@@ -115,20 +111,51 @@
                 success: function (response) {
                     centroidPlaceholder.innerHTML = centroidTemplate(response);
                 }
-            });
+            });*/
 
-            //Requests own server to process data
+            //Requests own server for user song recommendations
             $.ajax({
                 type: "GET",
-                url: '/',
+                url: '/recommendation/' + 'crazywanderinghost',
                 headers: {
                     'Authorization': 'Bearer ' + access_token
                 },
-                data: {},
+                dataType: "json",
                 success: function (response) {
-                    testPlaceholder.innerHTML = testTemplate(response);
+                    //recommendPlaceholder.innerHTML = recommendTemplate(response);
+                    idArray = response.map((object) => object.id);
+                    accessibilityArray = response.map((object) => object.accessibility);
+                    console.log(idArray);
+
+                    $.ajax({
+                        url: 'https://api.spotify.com/v1/tracks',
+                        headers: {
+                            'Authorization': 'Bearer ' + access_token
+                        },
+                        data: {
+                            'ids': idArray.join(',')
+                        },
+                        success: function (response) {
+                            response = response.tracks.map((object, index) => { object.accessibility = accessibilityArray[index]; return object; });
+                            console.log(response);
+                            recommendPlaceholder.innerHTML = recommendTemplate({ 'items': response });
+                        }
+                    });
                 }
             });
+
+            //Requests own server to process data
+            //$.ajax({
+            //    type: "GET",
+            //    url: '/',
+            //    headers: {
+            //        'Authorization': 'Bearer ' + access_token
+            //    },
+            //    data: {},
+            //    success: function (response) {
+            //        testPlaceholder.innerHTML = testTemplate(response);
+            //    }
+            //});
 
         } else {
             $('#login').show();

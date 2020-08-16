@@ -25,7 +25,7 @@
           <div id="loggedin">
               <div id="test">
               </div>
-              <div id="centroid">
+              <div id="recommend">
               </div>
               <div id="album_library">
               </div>
@@ -36,8 +36,27 @@
           <h1>Test Result:</h1> {{this}}
       </script>
 
-      <script id="centroid_template" type="text/x-handlebars-template">
-          <h1>Centroid Info:</h1> {{this}}
+      <script id="recommend_template" type="text/x-handlebars-template">
+          <h1>Recommended Songs</h1>
+          {{#each items}}
+          <div class="media">
+              <div class="pull-left">
+                  <img class="media-object" width="150" src="{{album.images.0.url}}" />
+              </div>
+              <div class="media-body">
+                  <dl class="dl-horizontal">
+                      <dt>Song Name</dt>
+                      <dd class="clearfix">{{name}}</dd>
+                      <dt>Artist(s)</dt>
+                      {{#each artists}}<dd>{{name}}</dd>{{/each}}
+                      <dt>Album Name</dt>
+                      <dd>{{album.name}}</dd>
+                      <dt>Accessibility</dt>
+                      <dd>{{accessibility}}</dd>
+                  </dl>
+              </div>
+          </div>
+          {{/each}}
       </script>
 
       <script id="album_library_template" type="text/x-handlebars-template">

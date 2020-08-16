@@ -1,5 +1,0 @@
-
-Save file path from argument: ./savedData/crazywanderinghost/Opened file to read successfully
-Loaded json file
-Opened file to read successfully
-Loaded json file

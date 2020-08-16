@@ -13,7 +13,7 @@ var express = require('express');
 const { makeRequest, chainRequests, concurrentRequests } = require('./customJS/webRequest.js');
 const { spawnPython } = require('./customJS/python.js');
 const { createTrimFunction, createSubArrays, joinSubArrays } = require('./customJS/trimJSON.js');
-const { writeToFile, readFromFile, createDirectory } = require('./customJS/ioStream.js')
+const { writeToFile, readFromFile, createDirectory, checkPath } = require('./customJS/ioStream.js')
 
 //Data paths
 const savePathTemplate = './savedData/';
@@ -108,10 +108,11 @@ app.put('/curator/', async function (req, res) {
     res.json(result);
 });
 
-app.get('/recommendation/', async function (req, res) {
-    //Get selected curator and their path
-    var curatorID = req.body["curator"];
-    var curatorDataPath = savePathTemplate + curatorID + '/';
+app.get('/recommendation/:curator', async function (req, res) {
+    //Check if curator data exists
+    var curatorDataPath = savePathTemplate + req.params.curator + '/';
+    var pathExists = await checkPath(curatorDataPath);
+    if (pathExists === false) req.json("Curator does not exist");
 
     //Get authorization code from req
     let auth = req.get('Authorization');
@@ -137,7 +138,7 @@ app.get('/recommendation/', async function (req, res) {
     var userDataPath = savePathTemplate + userID + '/';
     var createdNew = await createDirectory(userDataPath).catch(error => { console.error(error); res.json(error) });
 
-    if (createdNew) {
+    if (createdNew === true) {
         //User's path is now on temporary directory
         userDataPath = tempPathTemplate + userID + '/';
 
@@ -198,8 +199,9 @@ app.get('/recommendation/', async function (req, res) {
     var recData = await readFromFile(recDataPath);
 
     //Return result to client
-    console.log(`Sending result to client: ${JSON.stringify(recData)}`);
-    res.json(JSON.stringify(recData));
+    var jsonData = JSON.parse(recData);
+    console.log(`Sending result to client: ${JSON.stringify(jsonData)}`);
+    res.json(jsonData);
 });
 
 app.post('/', function (req, res) {

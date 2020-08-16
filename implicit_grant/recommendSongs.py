@@ -6,87 +6,62 @@ from sklearn import preprocessing
 import numpy as np
 
 import jsonTools
+import minTupleHeapClass as minHeap
 
-MY_DATA_PATH = "./myData/songFeatures.txt"
+FEATURE_PATH = "songFeatures.npy"
+ID_PATH = "songID.txt"
+REC_PATH = "recommendedSongs.txt"
+
 LOG_PATH = "./log.txt"
 with open(LOG_PATH, "w") as logStream:
-    logStream.write("Python script running. Created log stream in:\n")
-    logStream.write(LOG_PATH)
     
-    #Gets path for user's song features from command line arguments
-    filePath = sys.argv[1]
-    logStream.write("\nUser file path from argument:\n")
-    logStream.write(filePath)
+    #Get paths from arguments
+    curatorPath = sys.argv[1]
+    userPath = sys.argv[2]
+    maxRecommendations = 10
 
-    #Loads JSON of dev song features if possible
-    if os.access(MY_DATA_PATH, os.R_OK or os.F_OK):
-        logStream.write("\nPasses os.R_OK and os.F_OK. Trying to open reading stream now: ")
-        logStream.write(MY_DATA_PATH)
-        with open(MY_DATA_PATH, "r") as readStream:
-            logStream.write("\nOpened file to read successfully\n")
-            devJSON = json.load(readStream)
-            logStream.write("Loaded json file\n")
-    else:
-        logStream.write("\nDoes not pass os.R_OK and os.F_OK")
-
-    #Create matrix of song feature values from dev JSON
-    devSongMatrix = []
-    for songDict in devJSON:
-        devSongMatrix.append(np.array(jsonTools.getSongArray(songDict)))
-    devSongMatrix = np.array(devSongMatrix)
-
-    #Loads JSON of user song features if possible
-    if os.access(filePath, os.R_OK or os.F_OK):
-        logStream.write("\nPasses os.R_OK and os.F_OK. Trying to open reading stream now: ")
-        logStream.write(filePath)
-        with open(filePath, "r") as readStream:
-            logStream.write("\nOpened file to read successfully\n")
-            userJSON = json.load(readStream)
-            logStream.write("Loaded json file\n")
-    else:
-        logStream.write("\nDoes not pass os.R_OK and os.F_OK")
-    
-    #Create matrix of song feature values from user JSON
-    userSongMatrix = []
-    for songDict in userJSON:
-        userSongMatrix.append(np.array(jsonTools.getSongArray(songDict)))
-    userSongMatrix = np.array(userSongMatrix)
+    #Loads song features
+    curatorFeatures = np.load(curatorPath + FEATURE_PATH, allow_pickle=True)
+    userFeatures = np.load(userPath + FEATURE_PATH, allow_pickle=True)
 
     #Join dev and user song feature matrices
-    superSongMatrix = np.concatenate((devSongMatrix, userSongMatrix))
+    superFeatures = np.concatenate((curatorFeatures, userFeatures))
 
-    #Fit standard scaler to superSongMatrix
-    scaler = preprocessing.StandardScaler().fit(superSongMatrix)
+    #Fit standard scaler to superFeatures
+    scaler = preprocessing.StandardScaler().fit(superFeatures)
 
     #Scale dev and user song feature matrices
-    devSongMatrix = scaler.transform(devSongMatrix)
-    userSongMatrix = scaler.transform(userSongMatrix)
+    curatorFeatures = scaler.transform(curatorFeatures)
+    userFeatures = scaler.transform(userFeatures)
 
     #Get dev and user song centroid
-    devSongCentroid = devSongMatrix.mean(axis=0)
-    userSongCentroid = userSongMatrix.mean(axis=0)
+    curatorCentroid = curatorFeatures.mean(axis=0)
+    userCentroid = userFeatures.mean(axis=0)
 
     #Calculate the accessibility of each dev song
-    accessibilityArray = []
+    heap = minHeap.MinTupleHeap(maxRecommendations)
     template = np.array([0,0,0,0,0,0,0,0], dtype="float64")
-    for songArray in devSongMatrix:
-        representativeness = math.sqrt(np.sum(np.square(np.subtract(devSongCentroid, songArray, out=template), out=template)))
-        familiarity = math.sqrt(np.sum(np.square(np.subtract(userSongCentroid, songArray, out=template), out=template)))
-        accessibilityArray.append((representativeness+familiarity)/2)
-    accessibilityArray = np.array(accessibilityArray)
-    #Only produces an array of size 8. WHYYYYYY???
+    for index, songArray in enumerate(userFeatures):
+        representativeness = -1 * math.sqrt(np.sum(np.square(np.subtract(curatorCentroid, songArray, out=template), out=template))) #Distance formula
+        familiarity = -1 * math.sqrt(np.sum(np.square(np.subtract(userCentroid, songArray, out=template), out=template)))
+        accessibility = (representativeness+familiarity)/2
+        if not heap.isFull() or accessibility > heap.getSmallest()[0]:
+            heap.insert((accessibility, index))
+    accessibilityArray = heap.getSortedArray(largestFirst = True)
 
+    #Load curators song ids
+    with open(curatorPath + ID_PATH, "r") as readStream:
+        curatorIDs = json.load(readStream)
 
-
-    ##############
-    #Get max song#
-    ##############
+    #Compile recommended song ids and accessibility ratings
+    recommendedSongs = []
+    for accessibility, index in accessibilityArray:
+        recommendedSongs.append({"id": curatorIDs[index], "accessibility": accessibility})
 
     #Output to text file to view
-    writePath = sys.argv[2]
-    accessibilityArray.tofile(writePath, sep=" ", format="%06.3f")
-    #with open(writePath, "w") as writeStream:
-        #writeStream.write(str(accessibilityArray))
+    recSongPath = userPath + REC_PATH
+    with open(recSongPath, "w") as writeStream:
+        writeStream.write(json.dumps(recommendedSongs))
     
     #Return file path
-    print (writePath, end="")
+    print (recSongPath, end="")
