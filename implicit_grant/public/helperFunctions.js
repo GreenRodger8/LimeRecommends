@@ -93,11 +93,80 @@
                     $('#login').hide();
                     $('#loggedin').show();
 
+                    //Add available curators as options in select object
+                    $.ajax({
+                        type: "GET",
+                        url: '/curators/',
+                        success: function (response) {
+                            console.log(JSON.stringify(response));
+                            for (curator of response) {
+                                htmlOption = '<option value=' + '\"' + curator + '\"> ' + curator + '</option>';
+                                $('#curatorSelect').append(htmlOption);
+                            }
+                        }
+                    });
+
                     loopAjax(response.next, { 'Authorization': 'Bearer ' + access_token }, (response) => {
                         albumLibraryPlaceholder.innerHTML += albumLibraryTemplate(response);
                         return response.next;
                     });
                 }
+            });
+
+            //Code for submission form
+            $('#recommendation-form').submit(event => {
+                event.preventDefault();
+
+                var selectedOption = $('#curatorSelect').val();
+                console.log(JSON.stringify(selectedOption));
+
+                if (selectedOption === 'addCurator') {
+                    console.log(`Chose to add curator`);
+                    $.ajax({
+                        type: "PUT",
+                        url: '/curator/',
+                        headers: {
+                            'Authorization': 'Bearer ' + access_token
+                        },
+                        data: {},
+                        success: function (response) {
+
+                        }
+                    });
+                }
+                else {
+                    console.log(`Chose the curator: ${selectedOption}`);
+                    $.ajax({
+                        type: "GET",
+                        url: '/recommendation/' + selectedOption,
+                        headers: {
+                            'Authorization': 'Bearer ' + access_token
+                        },
+                        dataType: "json",
+                        success: function (response) {
+                            //recommendPlaceholder.innerHTML = recommendTemplate(response);
+                            idArray = response.map((object) => object.id);
+                            accessibilityArray = response.map((object) => object.accessibility);
+                            console.log(idArray);
+
+                            $.ajax({
+                                url: 'https://api.spotify.com/v1/tracks',
+                                headers: {
+                                    'Authorization': 'Bearer ' + access_token
+                                },
+                                data: {
+                                    'ids': idArray.join(',')
+                                },
+                                success: function (response) {
+                                    response = response.tracks.map((object, index) => { object.accessibility = accessibilityArray[index]; return object; });
+                                    console.log(response);
+                                    recommendPlaceholder.innerHTML = recommendTemplate({ 'items': response });
+                                }
+                            });
+                        }
+                    });
+                }
+
             });
 
             //Requests own server to save user song data
@@ -114,7 +183,7 @@
             });*/
 
             //Requests own server for user song recommendations
-            $.ajax({
+            /*$.ajax({
                 type: "GET",
                 url: '/recommendation/' + 'crazywanderinghost',
                 headers: {
@@ -142,7 +211,7 @@
                         }
                     });
                 }
-            });
+            });*/
 
             //Requests own server to process data
             //$.ajax({

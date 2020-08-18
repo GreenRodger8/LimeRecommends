@@ -1,4 +1,6 @@
 **/clientSecrets.js
 **/.vs/
 **/__pycache__/
+implicit_grant/savedData/*
+implicit_grant/tempData/*
 node_modules/

@@ -76,3 +76,13 @@ async function checkPath(path) {
     });
 }
 exports.checkPath = checkPath;
+
+async function getDirectoryNames(path) {
+    return new Promise((resolve, reject) => {
+        fs.readdir(path, (err, files) => {
+            if (err) reject(err);
+            else resolve(files);
+        });
+    });
+}
+exports.getDirectoryNames = getDirectoryNames;

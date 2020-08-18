@@ -13,7 +13,7 @@ var express = require('express');
 const { makeRequest, chainRequests, concurrentRequests } = require('./customJS/webRequest.js');
 const { spawnPython } = require('./customJS/python.js');
 const { createTrimFunction, createSubArrays, joinSubArrays } = require('./customJS/trimJSON.js');
-const { writeToFile, readFromFile, createDirectory, checkPath } = require('./customJS/ioStream.js')
+const { writeToFile, readFromFile, createDirectory, checkPath, getDirectoryNames } = require('./customJS/ioStream.js')
 
 //Data paths
 const savePathTemplate = './savedData/';
@@ -28,6 +28,12 @@ var app = express();
 app.use(express.static(__dirname + '/public')); //Serves index.html
 app.use(express.json()); //For parsing application/json
 app.use(express.urlencoded({ extended: true })); //For parsing application/x-www-form-urlencoded
+
+app.get('/curators/', async function (req, res) {
+    var files = await getDirectoryNames('savedData');
+    console.log(`File array to send to client: ${JSON.stringify(files)}`)
+    res.json(files);
+});
 
 app.put('/curator/', async function (req, res) {
     //Get authorization code from req
@@ -193,7 +199,8 @@ app.get('/recommendation/:curator', async function (req, res) {
     }
 
     //Run script to get recommended songs
-    var recDataPath = await spawnPython('recommendSongs', [curatorDataPath, userDataPath]).catch(error => { console.error(error); res.json(error) });
+    const maxRecs = 20;
+    var recDataPath = await spawnPython('recommendSongs', [curatorDataPath, userDataPath, maxRecs]).catch(error => { console.error(error); res.json(error) });
 
     //Read recommendation data
     var recData = await readFromFile(recDataPath);
