@@ -54,7 +54,9 @@ app.put('/curator/', async function (req, res) {
         console.error(error);
     }
     var userID = userObject.id;
+    var userDisplayName = userObject.display_name;
     console.log(`userID = ${userID}`);
+    console.log(`userDisplayName = ${ userDisplayName }`);
 
     //Create directory for user
     var userDataPath = savePathTemplate + userID + '/';
@@ -144,11 +146,13 @@ app.get('/recommendation/:curator', async function (req, res) {
 
     //Check if new directory needs to be created for user. If true, must add song data temporarily. If false, skip
     var userDataPath = savePathTemplate + userID + '/';
-    var createdNew = await createDirectory(userDataPath).catch(error => { console.error(error); res.json(error) });
+    var userPathExists = await checkPath(userDataPath);
+    console.log(`Does user path exists? ${userPathExists}`);
 
-    if (createdNew === true) {
+    if (userPathExists === false) {
         //User's path is now on temporary directory
         userDataPath = tempPathTemplate + userID + '/';
+        await createDirectory(userDataPath);
 
         //Get IDs of all saved songs in a user's library
         const options = {

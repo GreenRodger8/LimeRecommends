@@ -65,15 +65,13 @@ async function createDirectory(path) {
 exports.createDirectory = createDirectory;
 
 async function checkPath(path) {
-    fs.access(path, fs.constants.F_OK, (err) => {
-        if (err) {
-            console.err(err);
-            return false;
-        }
-        else {
-            return true;
-        }
-    });
+    try {
+        fs.accessSync(path, fs.constants.F_OK);
+        console.log(`Path ${path} exists`);
+    } catch (err) {
+        console.error(`Path ${path} encountered error: ${err}`);
+        return false;
+    }
 }
 exports.checkPath = checkPath;
 
