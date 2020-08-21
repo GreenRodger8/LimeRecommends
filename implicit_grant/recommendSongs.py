@@ -12,7 +12,7 @@ FEATURE_PATH = "songFeatures.npy"
 ID_PATH = "songID.txt"
 REC_PATH = "recommendedSongs.txt"
 
-LOG_PATH = "./log.txt"
+LOG_PATH = "./log.txt" #Changed to "/log.txt" in ubuntu
 with open(LOG_PATH, "w") as logStream:
     
     #Get paths from arguments
@@ -64,4 +64,4 @@ with open(LOG_PATH, "w") as logStream:
         writeStream.write(json.dumps(recommendedSongs))
     
     #Return file path
-    print (recSongPath, end="")
+    print(recSongPath, end="") # "" changed to '' in ubuntu

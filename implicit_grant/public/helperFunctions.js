@@ -130,7 +130,12 @@
                         },
                         data: {},
                         success: function (response) {
-
+                            console.log(JSON.stringify(response));
+                            $('#curatorSelect').empty();
+                            for (curator of response) {
+                                htmlOption = '<option value=' + '\"' + curator + '\"> ' + curator + '</option>';
+                                $('#curatorSelect').append(htmlOption);
+                            }
                         }
                     });
                 }

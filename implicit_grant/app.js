@@ -109,13 +109,15 @@ app.put('/curator/', async function (req, res) {
     //Run script to save songs 
     var result = await spawnPython('storeLibrary', [userDataPath]).catch(error => { console.error(error); res.json(error) });
 
-    //Return result to client
-    console.log(`Sending result to client: ${result}`);
-    res.json(result);
+    //Return new list of curators to client
+    var files = await getDirectoryNames('savedData');
+    console.log(`File array to send to client: ${JSON.stringify(files)}`)
+    res.json(files);
 });
 
 app.get('/recommendation/:curator', async function (req, res) {
     //Check if curator data exists
+    //TODO: Does not validate req.params.curator, is a security hazard
     var curatorDataPath = savePathTemplate + req.params.curator + '/';
     var pathExists = await checkPath(curatorDataPath);
     if (pathExists === false) req.json("Curator does not exist");

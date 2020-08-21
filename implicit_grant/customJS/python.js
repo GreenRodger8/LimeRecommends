@@ -2,6 +2,7 @@
 
 const { spawn } = require('child_process');
 
+const PYTHON_INTERPRETER = 'python.exe'; //Changed in ubuntu to '../lime-env/bin/python3.7'
 /**
  * Spawn python to perform task
  * @param   {Array} arguments Array of string arguments
@@ -10,7 +11,7 @@ const { spawn } = require('child_process');
  */
 function spawnPython(pythonName, arguments) {
     return new Promise((resolve, reject) => {
-        const python = spawn('python.exe', [pythonName + '.py', ...arguments]);
+        const python = spawn(PYTHON_INTERPRETER, [pythonName + '.py', ...arguments]);
         console.log(`Python script \"${pythonName}.py\" spawned with argument(s): ${arguments}`);
 
         var pythonResult;
