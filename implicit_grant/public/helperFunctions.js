@@ -100,7 +100,7 @@
                         success: function (response) {
                             console.log(JSON.stringify(response));
                             for (curator of response) {
-                                htmlOption = '<option value=' + '\"' + curator + '\"> ' + curator + '</option>';
+                                htmlOption = '<option value=' + '\"' + curator.id + '\"> ' + curator.displayName + '</option>';
                                 $('#curatorSelect').append(htmlOption);
                             }
                         }
@@ -133,7 +133,7 @@
                             console.log(JSON.stringify(response));
                             $('#curatorSelect').empty();
                             for (curator of response) {
-                                htmlOption = '<option value=' + '\"' + curator + '\"> ' + curator + '</option>';
+                                htmlOption = '<option value=' + '\"' + curator.id + '\"> ' + curator.displayName + '</option>';
                                 $('#curatorSelect').append(htmlOption);
                             }
                         }

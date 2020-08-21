@@ -16,8 +16,8 @@ const { createTrimFunction, createSubArrays, joinSubArrays } = require('./custom
 const { writeToFile, readFromFile, createDirectory, checkPath, getDirectoryNames } = require('./customJS/ioStream.js')
 
 //Data paths
-const savePathTemplate = './savedData/';
-const tempPathTemplate = './tempData/';
+const SAVED_PATH_TEMPLATE = './savedData/';
+const TEMP_PATH_TEMPLATE = './tempData/';
 
 //Targeted song features
 const songFeatures = ["acousticness", "danceability", "energy", "instrumentalness", "loudness", "speechiness", "tempo", "valence"];
@@ -30,16 +30,26 @@ app.use(express.json()); //For parsing application/json
 app.use(express.urlencoded({ extended: true })); //For parsing application/x-www-form-urlencoded
 
 app.get('/curators/', async function (req, res) {
-    var files = await getDirectoryNames('savedData');
-    console.log(`File array to send to client: ${JSON.stringify(files)}`)
-    res.json(files);
+    var userIDs = await getDirectoryNames('savedData');
+    var userInfo = [];
+    for (userID of userIDs) {
+        try {
+            var userDisplayName = await readFromFile(SAVED_PATH_TEMPLATE + userID + '/displayName.txt');
+            userInfo.push({ id: userID, displayName: userDisplayName });
+        } catch (err) {
+            console.error(`Error trying to get list of curators ${err}`);
+            break;
+        }
+    }
+    console.log(`File array to send to client: ${JSON.stringify(userInfo)}`)
+    res.json(userInfo);
 });
 
 app.put('/curator/', async function (req, res) {
     //Get authorization code from req
     let auth = req.get('Authorization');
 
-    //Get user's id
+    //Get user's id and display name
     const options0 = {
         method: 'GET',
         hostname: 'api.spotify.com',
@@ -59,8 +69,9 @@ app.put('/curator/', async function (req, res) {
     console.log(`userDisplayName = ${ userDisplayName }`);
 
     //Create directory for user
-    var userDataPath = savePathTemplate + userID + '/';
+    var userDataPath = SAVED_PATH_TEMPLATE + userID + '/';
     await createDirectory(userDataPath);
+    await writeToFile(userDataPath + 'displayName.txt', userDisplayName);
 
     //Get IDs of all saved songs in a user's library
     const options = {
@@ -112,15 +123,25 @@ app.put('/curator/', async function (req, res) {
     var result = await spawnPython('storeLibrary', [userDataPath]).catch(error => { console.error(error); res.json(error) });
 
     //Return new list of curators to client
-    var files = await getDirectoryNames('savedData');
-    console.log(`File array to send to client: ${JSON.stringify(files)}`)
-    res.json(files);
+    var userIDs = await getDirectoryNames('savedData');
+    var userInfo = [];
+    for (userID of userIDs) {
+        try {
+            var userDisplayName = await readFromFile(SAVED_PATH_TEMPLATE + userID + '/displayName.txt');
+            userInfo.push({ id: userID, displayName: userDisplayName });
+        } catch (err) {
+            console.error(`Error trying to get list of curators ${err}`);
+            break;
+        }
+    }
+    console.log(`File array to send to client: ${JSON.stringify(userInfo)}`)
+    res.json(userInfo);
 });
 
 app.get('/recommendation/:curator', async function (req, res) {
     //Check if curator data exists
     //TODO: Does not validate req.params.curator, is a security hazard
-    var curatorDataPath = savePathTemplate + req.params.curator + '/';
+    var curatorDataPath = SAVED_PATH_TEMPLATE + req.params.curator + '/';
     var pathExists = await checkPath(curatorDataPath);
     if (pathExists === false) req.json("Curator does not exist");
 
@@ -145,13 +166,13 @@ app.get('/recommendation/:curator', async function (req, res) {
     console.log(`userID = ${userID}`);
 
     //Check if new directory needs to be created for user. If true, must add song data temporarily. If false, skip
-    var userDataPath = savePathTemplate + userID + '/';
+    var userDataPath = SAVED_PATH_TEMPLATE + userID + '/';
     var userPathExists = await checkPath(userDataPath);
     console.log(`Does user path exists? ${userPathExists}`);
 
     if (userPathExists === false) {
         //User's path is now on temporary directory
-        userDataPath = tempPathTemplate + userID + '/';
+        userDataPath = TEMP_PATH_TEMPLATE + userID + '/';
         await createDirectory(userDataPath);
 
         //Get IDs of all saved songs in a user's library

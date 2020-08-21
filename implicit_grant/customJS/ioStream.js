@@ -4,7 +4,7 @@ const fs = require('fs');
 const fsPromises = require('fs').promises;
 
 /**
- * Writes data to file. Replaces file if it already exists
+ * Writes data to file. Replaces file if it already exists, creates file if it does not exist
  * @param {String} path Path of file to write to. Also includes file name and extension
  * @param {String|Buffer|Uint8Array} data Data to write to file
  * @returns {Promise} Resolves once writeStream ends
@@ -28,7 +28,8 @@ exports.writeToFile = writeToFile;
 
 /**
  * Reads data from file
- * @param {any} path
+ * @param {String} path
+ * @returns {Promise} Resolves to string of file data
  */
 async function readFromFile(path) {
     let fileHandle;
@@ -48,6 +49,11 @@ async function readFromFile(path) {
 }
 exports.readFromFile = readFromFile;
 
+/**
+ * Creates directory
+ * @param {String} path
+ * @returns {Promise} Resolves to true if directory was made, false if it already exists
+ */
 async function createDirectory(path) {
     try {
         console.log(`Creating directory for ${path}`);
@@ -64,10 +70,16 @@ async function createDirectory(path) {
 }
 exports.createDirectory = createDirectory;
 
+/**
+ * Checks if file or directory exists
+ * @param {String} path
+ * @returns {Promise} Resolves to true if file/directory exists, false otherwise
+ */
 async function checkPath(path) {
     try {
         fs.accessSync(path, fs.constants.F_OK);
         console.log(`Path ${path} exists`);
+        return true;
     } catch (err) {
         console.error(`Path ${path} encountered error: ${err}`);
         return false;
@@ -75,6 +87,10 @@ async function checkPath(path) {
 }
 exports.checkPath = checkPath;
 
+/**
+ * Returns an array of a directory's files and subdirectories
+ * @param {String} path
+ */
 async function getDirectoryNames(path) {
     return new Promise((resolve, reject) => {
         fs.readdir(path, (err, files) => {
