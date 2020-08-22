@@ -19,6 +19,9 @@ const { writeToFile, readFromFile, createDirectory, checkPath, getDirectoryNames
 const SAVED_PATH_TEMPLATE = './savedData/';
 const TEMP_PATH_TEMPLATE = './tempData/';
 
+//Other constans
+const MAX_SONGS = 3000;
+
 //Targeted song features
 const songFeatures = ["acousticness", "danceability", "energy", "instrumentalness", "loudness", "speechiness", "tempo", "valence"];
 
@@ -73,7 +76,7 @@ app.put('/curator/', async function (req, res) {
     await createDirectory(userDataPath);
     await writeToFile(userDataPath + 'displayName.txt', userDisplayName);
 
-    //Get IDs of all saved songs in a user's library
+    //Get IDs of saved songs in a user's library, up to MAX_SONGS amount
     const options = {
         method: 'GET',
         hostname: 'api.spotify.com',
@@ -84,7 +87,7 @@ app.put('/curator/', async function (req, res) {
     };
     const trimFunction = createTrimFunction([["track", "name"], ["track", "id"]]);
     try {
-        var responseArray = await chainRequests(options, trimFunction); //Make promise handler?
+        var responseArray = await chainRequests(options, trimFunction, MAX_SONGS/50); //Make promise handler?
     } catch (error) {
         console.error(error);
     };
@@ -175,7 +178,7 @@ app.get('/recommendation/:curator', async function (req, res) {
         userDataPath = TEMP_PATH_TEMPLATE + userID + '/';
         await createDirectory(userDataPath);
 
-        //Get IDs of all saved songs in a user's library
+        //Get IDs of saved songs in a user's library, up to MAX_SONGS amount
         const options = {
             method: 'GET',
             hostname: 'api.spotify.com',
@@ -186,7 +189,7 @@ app.get('/recommendation/:curator', async function (req, res) {
         };
         const trimFunction = createTrimFunction([["track", "name"], ["track", "id"]]);
         try {
-            var responseArray = await chainRequests(options, trimFunction); //Make promise handler?
+            var responseArray = await chainRequests(options, trimFunction, MAX_SONGS / 50); //Make promise handler?
         } catch (error) {
             console.error(error);
         };

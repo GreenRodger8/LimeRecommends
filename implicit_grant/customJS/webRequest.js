@@ -68,15 +68,18 @@ exports.newPath = newPath;
  * Chain requests to get all of an endpoints data
  * @param {JSON} initialOptions Options to use for request
  * @param {Function} filterFunction Decides what to keep from response["items"] object
+ * @param {Number} limit Max number of requests allowed to be chained
  * @returns {Array} Array of objects composed from chained requests
  */
-async function chainRequests(initialOptions, filterFunction) {
+async function chainRequests(initialOptions, filterFunction, limit) {
     var response = await makeRequest(initialOptions);
     var responseArray = response["items"].map(filterFunction); //Must return only id from {track: {id}}?
 
-    while (response.next) {
+    var iterations = 0;
+    while (response.next && iterations < limit) {
         response = await makeRequest(newPath(initialOptions, response.next));
         responseArray = responseArray.concat(response["items"].map(filterFunction));
+        iterations++;
     }
 
     return responseArray;
