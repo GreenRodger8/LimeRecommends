@@ -7,256 +7,188 @@
  * https://developer.spotify.com/web-api/authorization-guide/#implicit_grant_flow
  */
 
-var express = require('express');
+const express = require('express');
+const os = require('os');
 
 //Custom functions
-const { makeRequest, chainRequests, concurrentRequests } = require('./customJS/webRequest.js');
 const { spawnPython } = require('./customJS/python.js');
-const { createTrimFunction, createSubArrays, joinSubArrays } = require('./customJS/trimJSON.js');
-const { writeToFile, readFromFile, createDirectory, checkPath, getDirectoryNames } = require('./customJS/ioStream.js')
+const { createTrimFunction, joinSubArrays } = require('./customJS/trimJSON.js');
+const { writeToFile, readFromFile, createDirectory, checkPath, getDirectoryNames } = require('./customJS/ioStream.js');
+const spotifyRequest = require('./customJS/spotifyRequest.js');
 
 //Data paths
 const SAVED_PATH_TEMPLATE = './savedData/';
 const TEMP_PATH_TEMPLATE = './tempData/';
 
-//Other constans
-const MAX_SONGS = 3000;
+//Constant values
+const MAX_TRACKS = 3000;
 
 //Targeted song features
-const songFeatures = ["acousticness", "danceability", "energy", "instrumentalness", "loudness", "speechiness", "tempo", "valence"];
+const SONG_FEATURES = ["acousticness", "danceability", "energy", "instrumentalness", "loudness", "speechiness", "tempo", "valence"];
 
 //  Express server section
-var app = express();
+const app = express();
 
 app.use(express.static(__dirname + '/public')); //Serves index.html
 app.use(express.json()); //For parsing application/json
 app.use(express.urlencoded({ extended: true })); //For parsing application/x-www-form-urlencoded
 
-app.get('/curators/', async function (req, res) {
-    var userIDs = await getDirectoryNames('savedData');
-    var userInfo = [];
-    for (userID of userIDs) {
-        try {
-            var userDisplayName = await readFromFile(SAVED_PATH_TEMPLATE + userID + '/displayName.txt');
-            userInfo.push({ id: userID, displayName: userDisplayName });
-        } catch (err) {
-            console.error(`Error trying to get list of curators ${err}`);
-            break;
+async function getAllFiles(basePath, filePath) {
+    try {
+        var directoryNames = await getDirectoryNames(basePath);
+        var fileContents = [];
+        for (directoryName of directoryNames) {
+            var content = await readFromFile(basePath + directoryName + '/' + filePath);
+            fileContents.push({ directory: directoryName, content: content });
         }
+    } catch (err) {
+        console.error(`Error trying to get contents from file:: ${err}`);
+    } finally {
+        return fileContents;
     }
-    console.log(`File array to send to client: ${JSON.stringify(userInfo)}`)
-    res.json(userInfo);
+};
+
+app.get('/curators/', async function (req, res) {
+    try {
+        var files = await getAllFiles(SAVED_PATH_TEMPLATE, 'displayName.txt');
+    } catch (err) {
+        console.error(`Error trying to get list of curators:: ${err}`);
+    } finally {
+        var curators = files.map(file => { return { id: file.directory, displayName: file.content } });
+        console.log(`Curators to send to client: ${JSON.stringify(curators)}`);
+        res.json(curators);
+    }
 });
 
 app.put('/curator/', async function (req, res) {
-    //Get authorization code from req
-    let auth = req.get('Authorization');
-
-    //Get user's id and display name
-    const options0 = {
-        method: 'GET',
-        hostname: 'api.spotify.com',
-        path: '/v1/me',
-        headers: {
-            'Authorization': auth
-        }
-    };
     try {
-        var userObject = await makeRequest(options0);
-    } catch (error) {
-        console.error(error);
+        console.log(`Received [ ${req.method} ${req.originalUrl} ] request`);
+        let auth = req.get('Authorization');
+
+        //Get user's id and display name
+        var userObject = await spotifyRequest.userProfile(auth);
+        console.log(`[ ${req.method} ${req.originalUrl} ] request for user [ ${userObject.id} ] with display name [ ${userObject.display_name} ]`);
+
+        //Create directory for user
+        let userPath = SAVED_PATH_TEMPLATE + userObject.id + '/';
+        await createDirectory(userPath);
+        await writeToFile(userPath + 'displayName.txt', userObject.display_name);
+        console.log(`Created directory for user [ ${userObject.id} ]`);
+
+        //Get IDs of saved tracks in a user's library, up to MAX_TRACKS amount
+        const trimID = createTrimFunction([["track", "id"]]);
+        let tracks = await spotifyRequest.userSavedTracks(auth, trimID, MAX_TRACKS);
+        let trackIDs = tracks.map(track => track["id"]);
+        console.log(`Retrieved saved tracks for user [ ${userObject.id} ]`);
+
+        //Get track features 
+        const trimAudioFeatures = (response) => response["audio_features"].map(createTrimFunction(SONG_FEATURES));
+        let trackFeatures = await spotifyRequest.severalTrackFeatures(auth, trimAudioFeatures, trackIDs);
+        trackFeatures = joinSubArrays(trackFeatures);
+        console.log(`Retrieved track features for user [ ${userObject.id} ]`);
+
+        //Write song features and song ID JSON to text file
+        let featurePromise = writeToFile(userPath + 'songFeatures.txt', JSON.stringify(trackFeatures));
+        let idPromise = writeToFile(userPath + 'songID.txt', JSON.stringify(trackIDs));
+        await Promise.all([featurePromise, idPromise]);
+        console.log(`Saved track features and ids for user [ ${userObject.id} ] in text files`);
+
+        //Run python script to preprocess user track features
+        await spawnPython('storeLibrary', [userPath]);
+        console.log(`Preprocessed track features for user [ ${userObject.id} ]`);
+
+        //Return new list of curators to client
+        let files = await getAllFiles(SAVED_PATH_TEMPLATE, 'displayName.txt');
+        let curators = files.map(file => { return { id: file.directory, displayName: file.content } });
+        console.log(`List of curators to send to client: ${JSON.stringify(curators)}`);
+
+        res.json(curators);
+    } catch (err) {
+        console.error(`Error in [ ${req.method} ${req.originalUrl} ] request for user [ ${userObject.id} ]:: ${err}`);
+        res.status(500).send('Internal Server Error');
     }
-    var userID = userObject.id;
-    var userDisplayName = userObject.display_name;
-    console.log(`userID = ${userID}`);
-    console.log(`userDisplayName = ${ userDisplayName }`);
-
-    //Create directory for user
-    var userDataPath = SAVED_PATH_TEMPLATE + userID + '/';
-    await createDirectory(userDataPath);
-    await writeToFile(userDataPath + 'displayName.txt', userDisplayName);
-
-    //Get IDs of saved songs in a user's library, up to MAX_SONGS amount
-    const options = {
-        method: 'GET',
-        hostname: 'api.spotify.com',
-        path: '/v1/me/tracks' + '?' + 'offset=0' + '&' + 'limit=50',
-        headers: {
-            'Authorization': auth
-        },
-    };
-    const trimFunction = createTrimFunction([["track", "name"], ["track", "id"]]);
-    try {
-        var responseArray = await chainRequests(options, trimFunction, MAX_SONGS/50); //Make promise handler?
-    } catch (error) {
-        console.error(error);
-    };
-    console.log(`responseArray = ${JSON.stringify(responseArray)}`);
-    const idArray = responseArray.map(track => track["id"]);
-
-    //Setup for requesting song feature data
-    const options2 = {
-        method: 'GET',
-        hostname: 'api.spotify.com',
-        path: '/v1/audio-features' + '/' + '?' + 'ids=', //Will receive ids from function
-        headers: {
-            'Authorization': auth
-        },
-    };
-    const trimFunction2 = (response) => response["audio_features"].map(createTrimFunction(songFeatures));
-
-    //Create an array of query strings
-    var queryArray2 = createSubArrays(idArray, 100).map(subArray => subArray.join(','));
-    console.log(`queryArray2 = ${JSON.stringify(queryArray2)}`);
-
-    //Get song feature data
-    try {
-        var songFeatureArray = await concurrentRequests(options2, queryArray2, trimFunction2);
-    } catch (error) {
-        console.error(error);
-    };
-    const superFeatureArray = joinSubArrays(songFeatureArray);
-
-    //Write song features and song ID JSON to text file
-    var featurePromise = writeToFile(userDataPath + 'songFeatures.txt', JSON.stringify(superFeatureArray));
-    var idPromise = writeToFile(userDataPath + 'songID.txt', JSON.stringify(idArray));
-    await Promise.all([featurePromise, idPromise]).catch(error => { console.error(error); res.json(error) });
-
-    //Run script to save songs 
-    var result = await spawnPython('storeLibrary', [userDataPath]).catch(error => { console.error(error); res.json(error) });
-
-    //Return new list of curators to client
-    var userIDs = await getDirectoryNames('savedData');
-    var userInfo = [];
-    for (userID of userIDs) {
-        try {
-            var userDisplayName = await readFromFile(SAVED_PATH_TEMPLATE + userID + '/displayName.txt');
-            userInfo.push({ id: userID, displayName: userDisplayName });
-        } catch (err) {
-            console.error(`Error trying to get list of curators ${err}`);
-            break;
-        }
-    }
-    console.log(`File array to send to client: ${JSON.stringify(userInfo)}`)
-    res.json(userInfo);
 });
 
 app.get('/recommendation/:curator', async function (req, res) {
-    //Check if curator data exists
-    //TODO: Does not validate req.params.curator, is a security hazard
-    var curatorDataPath = SAVED_PATH_TEMPLATE + req.params.curator + '/';
-    var pathExists = await checkPath(curatorDataPath);
-    if (pathExists === false) req.json("Curator does not exist");
-
-    //Get authorization code from req
-    let auth = req.get('Authorization');
-
-    //Get user's id
-    const options0 = {
-        method: 'GET',
-        hostname: 'api.spotify.com',
-        path: '/v1/me',
-        headers: {
-            'Authorization': auth
-        }
-    };
     try {
-        var userObject = await makeRequest(options0);
-    } catch (error) {
-        console.error(error);
+        console.log(`Received [ ${req.method} ${req.originalUrl} ] request`);
+        let auth = req.get('Authorization');
+
+        //Get user's id and display name
+        var userObject = await spotifyRequest.userProfile(auth);
+        console.log(`[ ${req.method} ${req.originalUrl} ] request for user [ ${userObject.id} ] with display name [ ${userObject.display_name} ]`);
+
+        //Check if curator data exists
+        //Potentially a security hazard because req.params.curator is received from user
+        let curatorPath = SAVED_PATH_TEMPLATE + req.params.curator + '/';
+        let curatorExists = await checkPath(curatorPath + 'displayName.txt');
+        if (curatorExists === false) req.json("Curator does not exist");
+        console.log(`Curator [ ${req.params.curator} ] exists`);
+
+        //Check if new directory needs to be created for user. If true, must add song data temporarily. If false, skip
+        var userPath = SAVED_PATH_TEMPLATE + userObject.id + '/';
+        let userExists = await checkPath(userPath);
+        console.log(`Checked if user [ ${userObject.id} ] exists`);
+
+        if (userExists === false) {
+            console.log(`User [ ${userObject.id} ] does not exist`);
+
+            //Create temporary directory for user
+            userPath = TEMP_PATH_TEMPLATE + userObject.id + '/';
+            await createDirectory(userPath);
+            console.log(`Created temporary directory for user [ ${userObject.id} ]`);
+
+            //Get IDs of saved tracks in a user's library, up to MAX_TRACKS amount
+            const trimID = createTrimFunction([["track", "id"]]);
+            let tracks = await spotifyRequest.userSavedTracks(auth, trimID, MAX_TRACKS);
+            let trackIDs = tracks.map(track => track["id"]);
+            console.log(`Retrieved saved tracks for user [ ${userObject.id} ]`);
+
+            //Get track features 
+            const trimAudioFeatures = (response) => response["audio_features"].map(createTrimFunction(SONG_FEATURES));
+            let trackFeatures = await spotifyRequest.severalTrackFeatures(auth, trimAudioFeatures, trackIDs);
+            trackFeatures = joinSubArrays(trackFeatures);
+            console.log(`Retrieved track features for user [ ${userObject.id} ]`);
+
+            //Write song features and song ID JSON to text file
+            let featurePromise = writeToFile(userPath + 'songFeatures.txt', JSON.stringify(trackFeatures));
+            let idPromise = writeToFile(userPath + 'songID.txt', JSON.stringify(trackIDs));
+            await Promise.all([featurePromise, idPromise]);
+            console.log(`Saved track features and ids for user [ ${userObject.id} ] in text files`);
+
+            //Run python script to preprocess user track features
+            await spawnPython('storeLibrary', [userPath]);
+            console.log(`Preprocessed track features for user [ ${userObject.id} ]`);
+
+        } else {
+            console.log(`User [ ${userObject.id} ] exists`);
+        }
+
+        //Run script to get recommended songs
+        const maxRecs = 20;
+        let recPath = await spawnPython('recommendSongs', [curatorPath, userPath, maxRecs]);
+        let recData = await readFromFile(recPath);
+        let recJSON = JSON.parse(recData);
+        console.log(`Processed recommendations for user [ ${userObject.id} ]`);
+
+        res.json(recJSON);
+    } catch (err) {
+        console.error(`Error in [ ${req.method} ${req.originalUrl} ] request for user [ ${userObject.id} ]:: ${err}`);
+        res.status(500).send('Internal Server Error');
     }
-    var userID = userObject.id;
-    console.log(`userID = ${userID}`);
-
-    //Check if new directory needs to be created for user. If true, must add song data temporarily. If false, skip
-    var userDataPath = SAVED_PATH_TEMPLATE + userID + '/';
-    var userPathExists = await checkPath(userDataPath);
-    console.log(`Does user path exists? ${userPathExists}`);
-
-    if (userPathExists === false) {
-        //User's path is now on temporary directory
-        userDataPath = TEMP_PATH_TEMPLATE + userID + '/';
-        await createDirectory(userDataPath);
-
-        //Get IDs of saved songs in a user's library, up to MAX_SONGS amount
-        const options = {
-            method: 'GET',
-            hostname: 'api.spotify.com',
-            path: '/v1/me/tracks' + '?' + 'offset=0' + '&' + 'limit=50',
-            headers: {
-                'Authorization': auth
-            },
-        };
-        const trimFunction = createTrimFunction([["track", "name"], ["track", "id"]]);
-        try {
-            var responseArray = await chainRequests(options, trimFunction, MAX_SONGS / 50); //Make promise handler?
-        } catch (error) {
-            console.error(error);
-        };
-        console.log(`responseArray = ${JSON.stringify(responseArray)}`);
-        const idArray = responseArray.map(track => track["id"]);
-
-        //Setup for requesting song feature data
-        const options2 = {
-            method: 'GET',
-            hostname: 'api.spotify.com',
-            path: '/v1/audio-features' + '/' + '?' + 'ids=', //Will receive ids from function
-            headers: {
-                'Authorization': auth
-            },
-        };
-        const trimFunction2 = (response) => response["audio_features"].map(createTrimFunction(songFeatures));
-
-        //Create an array of query strings
-        var queryArray2 = createSubArrays(idArray, 100).map(subArray => subArray.join(','));
-        console.log(`queryArray2 = ${JSON.stringify(queryArray2)}`);
-
-        //Get song feature data
-        try {
-            var songFeatureArray = await concurrentRequests(options2, queryArray2, trimFunction2);
-        } catch (error) {
-            console.error(error);
-        };
-        const superFeatureArray = joinSubArrays(songFeatureArray);
-
-        //Write song features and song ID JSON to text file
-        var featurePromise = writeToFile(userDataPath + 'songFeatures.txt', JSON.stringify(superFeatureArray));
-        var idPromise = writeToFile(userDataPath + 'songID.txt', JSON.stringify(idArray));
-        await Promise.all([featurePromise, idPromise]).catch(error => { console.error(error); res.json(error) });
-
-        //Run script to save songs 
-        await spawnPython('storeLibrary', [userDataPath]).catch(error => { console.error(error); res.json(error) });
-    }
-
-    //Run script to get recommended songs
-    const maxRecs = 20;
-    var recDataPath = await spawnPython('recommendSongs', [curatorDataPath, userDataPath, maxRecs]).catch(error => { console.error(error); res.json(error) });
-
-    //Read recommendation data
-    var recData = await readFromFile(recDataPath);
-
-    //Return result to client
-    var jsonData = JSON.parse(recData);
-    console.log(`Sending result to client: ${JSON.stringify(jsonData)}`);
-    res.json(jsonData);
 });
 
-app.post('/', function (req, res) {
-    let auth = req.get('Authorization');
-
-    //Stringifying JSON
-    var testJson = { "auth": auth };
-    var stringJson = JSON.stringify(testJson);
-
-    //Spawn python to perform task
-    spawnPython('test', [stringJson])
-        .then(result => {
-            console.log(`Sent to server: ${result}`);
-            res.json(result);
-        })
-        .catch(err => { console.log(`ERROR WITH PROMISE: ${err}`); res.json(err); });
+app.get('/test', function (req, res) {
+    res.status(200).end();
 });
 
-console.log('Listening on 8888');
-app.listen(8888);
+if (process.argv[2] === 'test') {
+    console.log('Listening on 8888');
+    app.listen(8888);
+}
+else {
+    console.log('Listening on 80');
+    app.listen(80);
+}
+
 

@@ -78,10 +78,8 @@ exports.createDirectory = createDirectory;
 async function checkPath(path) {
     try {
         fs.accessSync(path, fs.constants.F_OK);
-        console.log(`Path ${path} exists`);
         return true;
     } catch (err) {
-        console.error(`Path ${path} encountered error: ${err}`);
         return false;
     }
 }
