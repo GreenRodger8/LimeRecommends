@@ -8,7 +8,6 @@
  */
 
 const express = require('express');
-const os = require('os');
 
 //Custom functions
 const { spawnPython } = require('./customJS/python.js');
@@ -182,13 +181,14 @@ app.get('/test', function (req, res) {
     res.status(200).end();
 });
 
-if (process.argv[2] === 'test') {
-    console.log('Listening on 8888');
-    app.listen(8888);
-}
-else {
+if (process.argv[2] === 'public') {
     console.log('Listening on 80');
     app.listen(80);
+}
+else {
+    console.log('Listening on 8888');
+    app.listen(8888);
+
 }
 
 
