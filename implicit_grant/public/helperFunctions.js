@@ -34,6 +34,7 @@
     function setupPlaylistButton(access_token, userID, curatorDisplay) {
         $('#playlist-btn').click(event => {
             event.preventDefault();
+            event.stopPropagation();
 
             let trackURIs = JSON.stringify({uris: $('label').filter('.active').map((index, element) => {
                 return element.id.toString();
@@ -44,9 +45,15 @@
                 description: 'Brought to you by Lime Recommends'
             });
 
+            $('#playlist-loading').show();
+            $('#playlist-success').hide();
             spotifyRequest.createPlaylist(access_token, userID, playlistSettings, (response) => {
+                playlistName = response.name;
                 spotifyRequest.addToPlaylist(access_token, response.id, trackURIs, (response) => {
                     console.log('Done adding tracks to playlist');
+                    $('#playlist-loading').hide();
+                    $('#playlist-success').show();
+                    $('#playlist-name').html(playlistName);
                 });
             });
         });
@@ -113,6 +120,7 @@
             //Event handler for form
             $('#recommendation-form').submit(event => {
                 event.preventDefault();
+                event.stopPropagation();
 
                 let selectedOption = $('#curatorSelect').val();
                 console.log(JSON.stringify(selectedOption));
@@ -125,6 +133,8 @@
                     });
                 }
                 else {
+                    $('#recommend-loading').show();
+
                     limeRequest.getRecommendation(access_token, selectedOption, (response) => {
                         console.log(`User ID: ${response.userID}\nCurator Display Name: ${response.curatorDisplay}`);
                         let userID = response.userID;
@@ -144,6 +154,7 @@
                                 response = response.tracks.map((object, index) => { object.accessibility = accessibilityScores[index]; return object; });
                                 recommendPlaceholder.innerHTML = recommendTemplate({ 'items': response });
                                 setupPlaylistButton(access_token, userID, curatorDisplay);
+                                $('#recommend-loading').hide();
                             }
                         });
                     });

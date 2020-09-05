@@ -10,14 +10,5 @@ limeUtility = (function () {
         }
     };
 
-    utility.loopAjax = function loopAjax(options, onSuccess) {
-        options.success = (response) => {
-            let newOptions = onSuccess(options, response);
-            if (newOptions === null) return;
-            else $.ajax(newOptions);
-        }
-        $.ajax(options);
-    };
-
     return utility;
 })();

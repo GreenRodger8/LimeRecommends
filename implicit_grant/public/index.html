@@ -7,7 +7,7 @@
     <title>Lime Recommends</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
     <style type="text/css">
-        #login, #loggedin {
+        #login, #loggedin, #playlist-loading, #playlist-success, #recommend-loading {
             display: none;
         }
 
@@ -44,7 +44,12 @@
 
             <hr />
 
-            <div id="test">
+            <div id="recommend-loading">
+                <div class="text-center">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                </div>
             </div>
             <div id="recommend" class="btn-group-vertical btn-group-toggle" data-toggle="buttons" role="group">
             </div>
@@ -63,10 +68,21 @@
         <div class="container row mb-1">
             <div class="col-sm-10">
                 <h2 class="mb-0">Recommended Songs</h2>
-                <p>Recommended Songs represent a middle-ground between Your music taste and the Curator's</p>
+                <p>Accessibility is a measure of how well a song represents the middle-ground between your music taste and the Curator's. Select the songs you would like to add to the playlist!</p>
             </div>
             <div class="col-sm-2 align-self-center">
                 <button id="playlist-btn" class="btn btn-primary text-nowrap">Make Playlist</button>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="text-center">
+                <div id="playlist-loading" class="spinner-border text-success" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+            </div>
+            <div id="playlist-success" class="alert alert-success" role="alert">
+                Playlist <strong id="playlist-name"></strong> created!
             </div>
         </div>
         
