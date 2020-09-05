@@ -31,9 +31,26 @@
         return text;
     };
 
-    //var userProfileSource = document.getElementById('user-profile-template').innerHTML,
-    //    userProfileTemplate = Handlebars.compile(userProfileSource),
-    //    userProfilePlaceholder = document.getElementById('user-profile');
+    function setupPlaylistButton(access_token, userID, curatorDisplay) {
+        $('#playlist-btn').click(event => {
+            event.preventDefault();
+
+            let trackURIs = JSON.stringify({uris: $('label').filter('.active').map((index, element) => {
+                return element.id.toString();
+            }).toArray() });
+            let playlistSettings = JSON.stringify({
+                name: curatorDisplay + ' Recommends',
+                public: false,
+                description: 'Brought to you by Lime Recommends'
+            });
+
+            spotifyRequest.createPlaylist(access_token, userID, playlistSettings, (response) => {
+                spotifyRequest.addToPlaylist(access_token, response.id, trackURIs, (response) => {
+                    console.log('Done adding tracks to playlist');
+                });
+            });
+        });
+    }
 
     var recommendSource = document.getElementById('recommend_template').innerHTML,
         recommendTemplate = Handlebars.compile(recommendSource),
@@ -93,7 +110,7 @@
                 }
             });
 
-            //On submit event handler
+            //Event handler for form
             $('#recommendation-form').submit(event => {
                 event.preventDefault();
 
@@ -109,8 +126,11 @@
                 }
                 else {
                     limeRequest.getRecommendation(access_token, selectedOption, (response) => {
-                        let trackIDs = response.map((object) => object.id);
-                        let accessibilityScores = response.map((object) => object.accessibility);
+                        console.log(`User ID: ${response.userID}\nCurator Display Name: ${response.curatorDisplay}`);
+                        let userID = response.userID;
+                        let curatorDisplay = response.curatorDisplay;
+                        let trackIDs = response.tracks.map((track) => track.id);
+                        let accessibilityScores = response.tracks.map((track) => track.accessibility);
 
                         $.ajax({
                             url: 'https://api.spotify.com/v1/tracks',
@@ -122,7 +142,8 @@
                             },
                             success: function (response) {
                                 response = response.tracks.map((object, index) => { object.accessibility = accessibilityScores[index]; return object; });
-                                recommendPlaceholder.innerHTML = recommendTemplate({ 'items': response }) + '<hr />';
+                                recommendPlaceholder.innerHTML = recommendTemplate({ 'items': response });
+                                setupPlaylistButton(access_token, userID, curatorDisplay);
                             }
                         });
                     });
@@ -143,7 +164,7 @@
             var state = generateRandomString(16);
 
             localStorage.setItem(stateKey, state);
-            var scope = 'user-library-read';
+            var scope = 'user-library-read playlist-modify-private';
 
             var url = 'https://accounts.spotify.com/authorize';
             url += '?response_type=token';

@@ -120,8 +120,8 @@ app.get('/recommendation/:curator', async function (req, res) {
         //Check if curator data exists
         //Potentially a security hazard because req.params.curator is received from user
         let curatorPath = SAVED_PATH_TEMPLATE + req.params.curator + '/';
-        let curatorExists = await checkPath(curatorPath + 'displayName.txt');
-        if (curatorExists === false) req.json("Curator does not exist");
+        let curatorDisplay = await readFromFile(curatorPath + 'displayName.txt');
+        if (curatorDisplay == null) req.json("Curator does not exist");
         console.log(`Curator [ ${req.params.curator} ] exists`);
 
         //Check if new directory needs to be created for user. If true, must add song data temporarily. If false, skip
@@ -170,7 +170,7 @@ app.get('/recommendation/:curator', async function (req, res) {
         let recJSON = JSON.parse(recData);
         console.log(`Processed recommendations for user [ ${userObject.id} ]`);
 
-        res.json(recJSON);
+        res.json({ tracks: recJSON, userID: userObject.id, curatorDisplay: curatorDisplay });
     } catch (err) {
         console.error(`Error in [ ${req.method} ${req.originalUrl} ] request for user [ ${userObject.id} ]:: ${err}`);
         res.status(500).send('Internal Server Error');

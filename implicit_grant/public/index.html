@@ -32,7 +32,7 @@
         <div id="loggedin">
             <h1>Want A Song Recommendation?</h1>
 
-            <form id="recommendation-form" class="mb-3">
+            <form id="recommendation-form" class="container mb-3">
                 <div class="form-group">
                     <label for="curatorSelect">Choose a curator</label>
                     <select class="form-control" id="curatorSelect">
@@ -60,57 +60,71 @@
     </script>
 
     <script id="recommend_template" type="text/x-handlebars-template">
-        <h2 class="mb-0">Recommended Songs</h2>
-        <p>Recommended Songs represent a middle-ground between Your music taste and the Curator's</p>
-        {{#each items}}
-        <label class="btn btn-light active">
-            <div class="media my-3">
-                <div class="pull-left">
-                    <img class="media-object align-self-center mr-3" width="150" src="{{album.images.0.url}}" />
-                </div>
-                <div class="media-body">
-                    <dl class="dl-horizontal row">
-                        <dt class="col-sm-2">Song Name</dt>
-                        <dd class="clearfix col-sm-10">{{name}}</dd>
-                        <dt class="col-sm-2">Artist(s)</dt>
-                        {{#each artists}}
-                        <dd class="col-sm-10">{{name}}</dd>
-                        {{/each}}
-                        <dt class="col-sm-2">Album Name</dt>
-                        <dd class="col-sm-10">{{album.name}}</dd>
-                        <dt class="col-sm-2">Accessibility</dt>
-                        <dd class="col-sm-10">{{accessibility}}</dd>
-                    </dl>
-                </div>
+        <div class="container row mb-1">
+            <div class="col-sm-10">
+                <h2 class="mb-0">Recommended Songs</h2>
+                <p>Recommended Songs represent a middle-ground between Your music taste and the Curator's</p>
             </div>
-            <input type="checkbox" value="{{id}}" checked />
-        </label>
-        {{/each}}
+            <div class="col-sm-2 align-self-center">
+                <button id="playlist-btn" class="btn btn-primary text-nowrap">Make Playlist</button>
+            </div>
+        </div>
+        
+        <div class="container">
+            {{#each items}}
+            <label id="{{uri}}" class="w-100 btn btn-light active">
+                <div class="media my-3">
+                    <div>
+                        <img class="media-object align-self-center mr-3" width="150" src="{{album.images.0.url}}" />
+                    </div>
+                    <div class="media-body text-left">
+                        <dl class="dl-horizontal row">
+                            <dt class="col-sm-2">Song Name</dt>
+                            <dd class="clearfix col-sm-10">{{name}}</dd>
+                            <dt class="col-sm-2">Artist(s)</dt>
+                            {{#each artists}}
+                            <dd class="col-sm-10">{{name}}</dd>
+                            {{/each}}
+                            <dt class="col-sm-2">Album Name</dt>
+                            <dd class="col-sm-10">{{album.name}}</dd>
+                            <dt class="col-sm-2">Accessibility</dt>
+                            <dd class="col-sm-10">{{accessibility}}</dd>
+                        </dl>
+                    </div>
+                </div>
+                <!--<input type="checkbox" value="{{id}}" checked />-->
+            </label>
+            {{/each}}
+        </div>
+        <hr />
     </script>
 
     <script id="album_library_template" type="text/x-handlebars-template">
-        {{#each items}}
-        {{#with album}}
-        <div class="media my-3">
-            <div class="pull-left">
-                <img class="media-object align-self-center mr-3" width="150" src="{{images.0.url}}" />
+        <div class="container mt-0">
+            {{#each items}}
+            {{#with album}}
+            <div class="media my-3">
+                <div class="pull-left">
+                    <img class="media-object align-self-center mr-3" width="150" src="{{images.0.url}}" />
+                </div>
+                <div class="media-body">
+                    <dl class="dl-horizontal row">
+                        <dt class="col-sm-2">Album name</dt>
+                        <dd class="clearfix col-sm-10">{{name}}</dd>
+                        <dt class="col-sm-2">Artist(s)</dt>
+                        <dd class="col-sm-10 row">{{#each artists}}<div class="container">{{name}}</div>{{/each}}</dd>
+                        <dt class="col-sm-2">Release Date</dt>
+                        <dd class="col-sm-10">{{release_date}}</dd>
+                        {{#if explicit}}
+                        <dt class="col-sm-12">Explicit</dt>{{/if}}
+                        <dt class="col-sm-2">Popularity</dt>
+                        <dd class="col-sm-10">{{popularity}}</dd>
+                    </dl>
+                </div>
             </div>
-            <div class="media-body">
-                <dl class="dl-horizontal row">
-                    <dt class="col-sm-2">Album name</dt>
-                    <dd class="clearfix col-sm-10">{{name}}</dd>
-                    <dt class="col-sm-2">Artist(s)</dt>
-                    <dd class="col-sm-10 row">{{#each artists}}<div class="container">{{name}}</div>{{/each}}</dd>
-                    <dt class="col-sm-2">Release Date</dt>
-                    <dd class="col-sm-10">{{release_date}}</dd>
-                    {{#if explicit}}<dt class="col-sm-12">Explicit</dt>{{/if}}
-                    <dt class="col-sm-2">Popularity</dt>
-                    <dd class="col-sm-10">{{popularity}}</dd>
-                </dl>
-            </div>
+            {{/with}}
+            {{/each}}
         </div>
-        {{/with}}
-        {{/each}}
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js"></script>
@@ -123,6 +137,7 @@
     <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
     -->
 
+    <script src="spotifyRequest.js"></script>
     <script src="limeUtility.js"></script>
     <script src="limeRequest.js"></script>
     <script src="clientSecrets.js"></script>
